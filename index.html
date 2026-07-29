@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Análisis de Riesgo de Inundaciones en Tipuani</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #751d1d;
+            --secondary-color: #a02828;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --success-color: #10b981;
+            --dark: #1e293b;
+            --gray: #64748b;
+            --light-gray: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+            border: 2px solid #f1f5f9;
+        }
+
+        header h1 {
+            color: #751d1d;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #64748b;
+            font-size: 1.1em;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: white;
+            border: 2px solid #e2e8f0;
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: #64748b;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            transform: translateY(-2px);
+            border-color: #751d1d;
+            color: #751d1d;
+        }
+
+        .tab.active {
+            background: #751d1d;
+            color: white;
+            border-color: #751d1d;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-align: center;
+            transition: all 0.3s;
+            border: 2px solid #f1f5f9;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(117, 29, 29, 0.15);
+            border-color: #751d1d;
+        }
+
+        .stat-card .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .stat-card h3 {
+            font-size: 2.5em;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .stat-card p {
+            color: var(--gray);
+            font-size: 0.95em;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 2px solid #f1f5f9;
+        }
+
+        .chart-card h3 {
+            color: #751d1d;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 3px solid #751d1d;
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .insight-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            border-left: 5px solid #751d1d;
+            border: 2px solid #f1f5f9;
+            border-left: 5px solid #751d1d;
+        }
+
+        .insight-card h3 {
+            color: #751d1d;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .insight-card p {
+            color: var(--gray);
+            line-height: 1.7;
+            margin-bottom: 10px;
+        }
+
+        .insight-card ul {
+            margin-left: 20px;
+            color: var(--gray);
+            line-height: 1.7;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 5px solid var(--danger-color);
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 5px solid var(--warning-color);
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .highlight-number {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.6em;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Dashboard de Análisis de Riesgo de Inundaciones</h1>
+            <p>Municipio de Tipuani - Levantamiento de Información Junio 2025</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('resumen')">📈 Resumen General</button>
+            <button class="tab" onclick="showTab('demografia')">👥 Demografía</button>
+            <button class="tab" onclick="showTab('infraestructura')">🏘️ Infraestructura</button>
+            <button class="tab" onclick="showTab('vulnerabilidad')">⚠️ Vulnerabilidad</button>
+            <button class="tab" onclick="showTab('experiencia')">🌊 Experiencia</button>
+            <button class="tab" onclick="showTab('prevencion')">🛡️ Prevención</button>
+        </div>
+
+        <!-- TAB RESUMEN GENERAL -->
+        <div id="resumen" class="tab-content active">
+        
+            <div class="stats-grid">
+                <div class="stat-card" style="border-bottom: 4px solid #751d1d">
+                    <div class="icon">🏘️</div>
+                    <h3 style="color: #751d1d;">60</h3>
+                    <p>Viviendas Registradas</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid #10b981">
+                    <div class="icon">✅</div>
+                    <h3 style="color: #10b981;">38</h3>
+                    <p>Encuestas Completas</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid #ef4444">
+                    <div class="icon">🏚️</div>
+                    <h3 style="color: #ef4444;">22</h3>
+                    <p>Deshabitadas Destruidas</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid #f59e0b">
+                    <div class="icon">⚠️</div>
+                    <h3 style="color: #f59e0b;">73%</h3>
+                    <p>Viviendas Afectadas</p>
+                </div>
+            </div>
+
+
+
+
+            <div class="alert alert-danger">
+                <strong>⚠️ Hallazgo Crítico:</strong> De 60 viviendas registradas, 44 están destruidas o afectadas (73.3%). Solo 16 viviendas no presentan daños estructurales.
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Estado de las Viviendas</h3>
+                    <div class="chart-container">
+                        <canvas id="viviendasChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Percepción de Vulnerabilidad</h3>
+                    <div class="chart-container">
+                        <canvas id="vulnerabilidadChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-card">
+                <h3>🔍 Principales Hallazgos</h3>
+                <ul>
+                    <li><strong>Destrucción Masiva:</strong> 24 viviendas completamente destruidas, acceso imposible por estancamiento de agua</li>
+                    <li><strong>Alta Vulnerabilidad:</strong> Más del 65% de la población se considera altamente vulnerable</li>
+                    <li><strong>Enfermedades:</strong> 68% reportó enfermedades tras el estancamiento del agua (dengue, chikungunya, infecciones)</li>
+                    <li><strong>Falta de Prevención:</strong> Sin sistema de alerta temprana efectivo</li>
+                    <li><strong>Infraestructura Precaria:</strong> 71% sin alcantarillado adecuado, riesgo sanitario grave</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- TAB DEMOGRAFÍA -->
+        <div id="demografia" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card" style="border-bottom: 4px solid #ec4899">
+                    <div class="icon">👩</div>
+                    <h3 style="color: #ec4899;">60.5%</h3>
+                    <p>Mujeres Encuestadas</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid #3b82f6">
+                    <div class="icon">👨</div>
+                    <h3 style="color: #3b82f6;">39.5%</h3>
+                    <p>Hombres Encuestados</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid #751d1d">
+                    <div class="icon">📊</div>
+                    <h3 style="color: #751d1d;">42 años</h3>
+                    <p>Edad Mediana</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid #10b981">
+                    <div class="icon">👨‍👩‍👧‍👦</div>
+                    <h3 style="color: #10b981;">4</h3>
+                    <p>Personas por Hogar (mediana)</p>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Distribución por Género</h3>
+                    <div class="chart-container">
+                        <canvas id="generoChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Ocupación de los Encuestados</h3>
+                    <div class="chart-container">
+                        <canvas id="ocupacionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Distribución de Niños por Hogar</h3>
+                    <div class="chart-container">
+                        <canvas id="ninosChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Distribución de Adultos Mayores por Hogar</h3>
+                    <div class="chart-container">
+                        <canvas id="adultosChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-card">
+                <h3>📊 Análisis Demográfico</h3>
+                <p><strong>Edad:</strong> Rango de 24 a 72 años. Mediana: 42 años, Media: 45 años.</p>
+                <p><strong>Niños:</strong> 79% de las viviendas (30 de 38) tienen niños menores de 12 años, con un rango de 1-7 niños por familia (moda: 1 niño).</p>
+                <p><strong>Adultos Mayores:</strong> 58% de las viviendas (22 de 38) tienen adultos mayores de 60 años, con un rango de 2-4 personas.</p>
+                <p><strong>Composición Familiar:</strong> Mediana de 4 personas por hogar (moda: 4). Rango: 1-18 personas.</p>
+                <p><strong>Actividades Económicas:</strong> Diversificadas - no todos son mineros. Comercio (10), Amas de casa (8), y Minería (5) son las más frecuentes. Existe temor a hablar de minería por represalias de cooperativas.</p>
+            </div>
+        </div>
+
+        <!-- TAB INFRAESTRUCTURA -->
+        <div id="infraestructura" class="tab-content">
+            <div class="alert alert-danger">
+                <strong>🚨 Crisis Sanitaria:</strong> 71% de las viviendas no tienen alcantarillado adecuado. 76% usa pozos ciegos que contaminan el suelo y el río.
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Sistema de Alcantarillado</h3>
+                    <div class="chart-container">
+                        <canvas id="alcantarilladoChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Gestión de Desechos del Baño</h3>
+                    <div class="chart-container">
+                        <canvas id="desechosChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Manejo de Residuos Sólidos</h3>
+                    <div class="chart-container">
+                        <canvas id="basuraChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Calidad del Agua Potable</h3>
+                    <div class="chart-container">
+                        <canvas id="aguaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-card">
+                <h3>🚰 Situación de Servicios Básicos</h3>
+                <p><strong>Alcantarillado:</strong> Sistema muy precario. Las aguas servidas desembocan al río sin tratamiento.</p>
+                <p><strong>Agua Potable:</strong> Nadie paga por agua potable. Se obtiene de conexiones no tratadas. En época de lluvia el agua viene turbia (amarillenta y café).</p>
+                <p><strong>Residuos:</strong> El recojo municipal ha dejado de ser regular. La basura se acumula y a veces se quema.</p>
+                <p><strong>Riesgo Sanitario:</strong> La combinación de pozos ciegos, falta de tratamiento de aguas y acumulación de basura representa un grave riesgo para la salud pública.</p>
+            </div>
+        </div>
+
+        <!-- TAB VULNERABILIDAD -->
+        <div id="vulnerabilidad" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card" style="border-bottom: 4px solid var(--danger-color)">
+                    <div class="icon">🌊</div>
+                    <h3>66%</h3>
+                    <p>Vulnerabilidad Alta/Muy Alta ante Inundaciones</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid var(--warning-color)">
+                    <div class="icon">🏔️</div>
+                    <h3>13%</h3>
+                    <p>Vulnerabilidad Alta ante Deslizamientos</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid var(--danger-color)">
+                    <div class="icon">🦟</div>
+                    <h3>68%</h3>
+                    <p>Reportó Enfermedades Post-Inundación</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid var(--warning-color)">
+                    <div class="icon">🎓</div>
+                    <h3>24%</h3>
+                    <p>Niños Afectados en Educación</p>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Vulnerabilidad ante Inundaciones</h3>
+                    <div class="chart-container">
+                        <canvas id="vulnInundacionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Vulnerabilidad ante Deslizamientos</h3>
+                    <div class="chart-container">
+                        <canvas id="vulnDeslizamientoChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card full-width">
+                    <h3>Impacto en Salud Post-Inundación</h3>
+                    <div class="chart-container">
+                        <canvas id="saludChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>🏔️ Riesgo Emergente:</strong> Cooperativa Germán Buch ha generado excavaciones en la ladera noreste, removiendo completamente la cobertura vegetal. Visible solo desde altura, genera riesgo de deslizamientos.
+            </div>
+
+            <div class="insight-card">
+                <h3>🦠 Enfermedades Reportadas</h3>
+                <ul>
+                    <li>Dengue y Chikungunya</li>
+                    <li>Fiebre y resfríos</li>
+                    <li>Picaduras de insectos infectadas</li>
+                    <li>Infección ocular por exposición a aire contaminado</li>
+                    <li>Hongos y erupciones cutáneas</li>
+                    <li>Escozor y manchas permanentes en la piel</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>Causa:</strong> Estancamiento de agua, presencia de basura y animales muertos.</p>
+            </div>
+        </div>
+
+        <!-- TAB EXPERIENCIA -->
+        <div id="experiencia" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card" style="border-bottom: 4px solid var(--primary-color)">
+                    <div class="icon">🌊</div>
+                    <h3>61%</h3>
+                    <p>Ha Experimentado Inundaciones</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid var(--danger-color)">
+                    <div class="icon">📈</div>
+                    <h3>4-6</h3>
+                    <p>Eventos en Últimos Años</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid var(--warning-color)">
+                    <div class="icon">📏</div>
+                    <h3>4m</h3>
+                    <p>Nivel Máximo del Agua</p>
+                </div>
+                <div class="stat-card" style="border-bottom: 4px solid var(--danger-color)">
+                    <div class="icon">⏱️</div>
+                    <h3>4 meses</h3>
+                    <p>Tiempo de Recuperación</p>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Experiencia con Inundaciones</h3>
+                    <div class="chart-container">
+                        <canvas id="experienciaChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Nivel del Agua Durante Última Inundación</h3>
+                    <div class="chart-container">
+                        <canvas id="nivelAguaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-danger">
+                <strong>📅 Evento del 18 de Enero 2025:</strong> El agua llegó sin previo aviso a las 3 de la madrugada. Nivel alcanzó hasta 4 metros (cubriendo primer piso completo). Agua permaneció estancada 1-2 metros por meses.
+            </div>
+
+            <div class="insight-card">
+                <h3> Daños Materiales Reportados</h3>
+                <ul>
+                    <li>Pérdida total de vehículos por inundación</li>
+                    <li>Casas colapsadas y en construcción abandonadas</li>
+                    <li>Pérdida de negocios completos: tornería, venta de llantas, restaurantes</li>
+                    <li>Electrodomésticos y equipos destruidos</li>
+                    <li>Materiales de construcción perdidos</li>
+                    <li>Reservas comerciales arruinadas</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>Cita textual:</strong> "Lo perdimos casi todo"</p>
+                <p><strong>Abandono:</strong> Propietarios desistieron de continuar construcciones al considerar que ya no vale la pena edificar en zona de riesgo.</p>
+            </div>
+
+            <div class="insight-card">
+                <h3>📏 Niveles de Inundación Reportados</h3>
+                <p><strong>Distribución de afectación:</strong></p>
+                <ul>
+                    <li><strong>12 personas:</strong> Sin afectación (zonas elevadas)</li>
+                    <li><strong>3 personas:</strong> Nivel hasta el tobillo</li>
+                    <li><strong>5 personas:</strong> Nivel hasta la rodilla</li>
+                    <li><strong>5 personas:</strong> Nivel hasta la cintura</li>
+                    <li><strong>13 personas:</strong> Nivel aproximado de 4 metros (cubrió completamente el primer piso)</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>Estancamiento posterior:</strong> Tras el evento inicial, el agua permaneció estancada entre 1 a 2 metros de altura durante varios meses.</p>
+            </div>
+
+            <div class="insight-card">
+                <h3>📊 Tendencia de Eventos</h3>
+                <p><strong>Frecuencia Creciente:</strong> Las inundaciones ahora son más frecuentes que hace 10 años y se agravan durante temporadas de lluvia.</p>
+                <p><strong>Intensidad Mayor:</strong> Los eventos recientes han sido más intensos debido al estancamiento prolongado del agua.</p>
+                <p><strong>Recuperación Lenta:</strong> Proceso tomó al menos 4 meses. Algunas viviendas aún presentan humedad y manchas en paredes.</p>
+            </div>
+        </div>
+
+        <!-- TAB PREVENCIÓN -->
+        <div id="prevencion" class="tab-content">
+            <div class="alert alert-danger">
+                <strong>🚨 Crisis de Prevención:</strong> Sin sistema de alerta temprana. Última inundación llegó sin advertencia a las 3 AM del 18 de enero.
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <h3>Conocimiento de Zona de Riesgo</h3>
+                    <div class="chart-container">
+                        <canvas id="zonaRiesgoChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <h3>Organización Comunitaria</h3>
+                    <div class="chart-container">
+                        <canvas id="organizacionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="insight-card">
+                <h3>⚠️ Sistema de Alerta Actual</h3>
+                <p><strong>Inexistente:</strong> No hay sistema de alerta temprana oficial.</p>
+                <p><strong>Alerta Informal:</strong> Algunos se alertan por:</p>
+                <ul>
+                    <li>Gritos de vecinos de barrios cercanos al río</li>
+                    <li>Publicaciones en Facebook de comunidades aguas arriba</li>
+                </ul>
+                <p style="margin-top: 10px;"><strong>Evento de Enero 2025:</strong> Llegó sin previo aviso. Familias evacuaron de emergencia a las 3 AM.</p>
+                <p><strong>Consecuencia:</strong> No se registraron muertes, pero el año anterior falleció un hombre sordo que no logró evacuar.</p>
+            </div>
+
+            <div class="insight-card">
+                <h3>🏛️ Percepción sobre Autoridades</h3>
+                <p><strong>Gestión Municipal:</strong> Percepción mayoritariamente negativa.</p>
+                <ul>
+                    <li><strong>Sin prevención:</strong> No implementan medidas preventivas</li>
+                    <li><strong>Respuesta limitada:</strong> Solo entrega de víveres (insuficientes)</li>
+                    <li><strong>Sin distribución equitativa:</strong> No todos los afectados reciben ayuda</li>
+                    <li><strong>Falta de carpas:</strong> No se proporcionan refugios temporales</li>
+                    <li><strong>Drenaje ineficaz:</strong> No lograron drenar el agua acumulada</li>
+                </ul>
+            </div>
+
+            <div class="insight-card">
+                <h3>👥 Organización Comunitaria</h3>
+                <p><strong>Limitada:</strong> 55% realiza reuniones comunitarias, 45% sin organización.</p>
+                <p><strong>Dificultades para organizarse:</strong></p>
+                <ul>
+                    <li>Falta de comprensión mutua y desconfianza entre vecinos</li>
+                    <li>Temor a represalias por parte de operadores mineros</li>
+                    <li>Amenazas de muerte a quienes intentan organizarse</li>
+                    <li>Muchos trabajan para cooperativas mineras y prefieren silencio</li>
+                </ul>
+                <p style="margin-top: 10px;"><strong>Necesidades reconocidas:</strong> Educación ambiental, coordinación barrial, control sobre minería.</p>
+            </div>
+
+            <div class="insight-card">
+                <h3>⚖️ Responsables Identificados</h3>
+                <p><strong>Cooperativas Mineras:</strong> Actividad descontrolada ha modificado la topografía natural.</p>
+                <p><strong>Alcaldía:</strong> Por permitir actividades sin control y no velar por el medio ambiente.</p>
+                <p><strong>Falta de Fiscalización:</strong> Inexistencia de planificación urbana adecuada.</p>
+            </div>
+
+            <div class="insight-card">
+                <h3>💡 Propuestas de la Comunidad</h3>
+                <p><strong>Prioridad:</strong> Descolmatación del río Tipuani (acumulación de sedimentos aumenta desborde)</p>
+                <p><strong>Otras sugerencias:</strong></p>
+                <ul>
+                    <li>Cooperativas deben asumir responsabilidades ambientales</li>
+                    <li>Reposición de suelos</li>
+                    <li>Traslado de actividades mineras fuera del área urbana</li>
+                    <li>Reforestación de zonas degradadas</li>
+                    <li>Planes de mitigación y compensación ambiental</li>
+                    <li>Fortalecer organización comunitaria</li>
+                </ul>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>🌍 Problemas Ambientales Principales:</strong> Acumulación de basura, contaminación del río, impacto minero (aguas turbias y residuos químicos), proliferación de mosquitos, mal manejo de residuos. "Ya nadie cultiva nada, todo es minería"
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Función para cambiar tabs
+        function showTab(tabName) {
+            // Ocultar todos los contenidos
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Quitar active de todos los tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Mostrar el contenido seleccionado
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activar el tab clickeado
+            event.target.classList.add('active');
+        }
+
+        // Configuración común de Chart.js
+        Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+        Chart.defaults.font.size = 13;
+
+        // GRÁFICO: Estado de Viviendas
+        new Chart(document.getElementById('viviendasChart'), {
+            type: 'doughnut',
+            data: {
+                labels: [
+                    'Deshabitada Destruida/Afectada (22 - 36.7%)', 
+                    'Habitada Destruida/Afectada (22 - 36.7%)', 
+                    'Habitada Sin Daños (16 - 26.7%)'
+                ],
+                datasets: [{
+                    data: [22, 22, 16],
+                    backgroundColor: ['#ef4444', '#f59e0b', '#8b5cf6'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let percent = ((context.parsed / 60) * 100).toFixed(1);
+                                return context.parsed + ' viviendas (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Vulnerabilidad General
+        new Chart(document.getElementById('vulnerabilidadChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Muy Bajo', 'Bajo', 'Moderado', 'Alto', 'Muy Alto'],
+                datasets: [{
+                    label: 'Número de personas',
+                    data: [3, 6, 4, 20, 5],
+                    backgroundColor: ['#10b981', '#84cc16', '#f59e0b', '#ef4444', '#991b1b'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 5
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Género
+        new Chart(document.getElementById('generoChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Mujeres (60.5%)', 'Hombres (39.5%)'],
+                datasets: [{
+                    data: [23, 15],
+                    backgroundColor: ['#ec4899', '#3b82f6'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + ' personas';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Ocupación
+        new Chart(document.getElementById('ocupacionChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Comercio', 'Ama de casa', 'Minería', 'Educación', 'Albañil', 'Crianza', 'Ferretería', 'Rep. Autos', 'Alojamiento', 'Carpintería', 'Soldador'],
+                datasets: [{
+                    label: 'Frecuencia',
+                    data: [10, 8, 5, 3, 2, 2, 2, 2, 2, 1, 1],
+                    backgroundColor: '#2563eb',
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Distribución de Niños por Hogar
+        new Chart(document.getElementById('ninosChart'), {
+            type: 'bar',
+            data: {
+                labels: ['0 niños', '1 niño', '2 niños', '3 niños', '6 niños', '7 niños'],
+                datasets: [{
+                    label: 'Frecuencia',
+                    data: [8, 18, 8, 2, 1, 1],
+                    backgroundColor: '#3b82f6',
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 20,
+                        ticks: {
+                            stepSize: 2
+                        },
+                        title: {
+                            display: true,
+                            text: 'Frecuencia (hogares)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Cantidad de Niños'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let percent = ((context.parsed.y / 38) * 100).toFixed(1);
+                                return context.parsed.y + ' hogares (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Distribución de Adultos Mayores por Hogar
+        new Chart(document.getElementById('adultosChart'), {
+            type: 'bar',
+            data: {
+                labels: ['0 adultos', '1 adulto', '2 adultos', '4 adultos'],
+                datasets: [{
+                    label: 'Frecuencia',
+                    data: [16, 10, 11, 1],
+                    backgroundColor: '#8b5cf6',
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 18,
+                        ticks: {
+                            stepSize: 2
+                        },
+                        title: {
+                            display: true,
+                            text: 'Frecuencia (hogares)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Cantidad de Adultos Mayores (>60 años)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let percent = ((context.parsed.y / 38) * 100).toFixed(1);
+                                return context.parsed.y + ' hogares (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Alcantarillado
+        new Chart(document.getElementById('alcantarilladoChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Sin alcantarillado (27 - 71.1%)', 'Con alcantarillado (11 - 28.9%)'],
+                datasets: [{
+                    data: [27, 11],
+                    backgroundColor: ['#ef4444', '#10b981'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Desechos del Baño
+        new Chart(document.getElementById('desechosChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Pozos ciegos (29 - 76.3%)', 'Alcantarillado (9 - 23.7%)'],
+                datasets: [{
+                    data: [29, 9],
+                    backgroundColor: ['#ef4444', '#3b82f6'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Basura
+        new Chart(document.getElementById('basuraChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Puntos de acopio/Contenedor', 'Carro basurero'],
+                datasets: [{
+                    label: '',
+                    data: [23, 15],
+                    backgroundColor: ['#2563eb', '#10b981'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 5
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let percent = ((context.parsed.y / 38) * 100).toFixed(1);
+                                return context.parsed.y + ' personas (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Calidad del Agua
+        new Chart(document.getElementById('aguaChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Muy Mala', 'Mala', 'Regular', 'Buena', 'Muy Buena'],
+                datasets: [{
+                    label: 'Calificación',
+                    data: [8, 12, 18, 0, 0],
+                    backgroundColor: ['#991b1b', '#ef4444', '#f59e0b', '#10b981', '#047857'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 2
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let percent = ((context.parsed.y / 38) * 100).toFixed(1);
+                                return context.parsed.y + ' personas (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Vulnerabilidad Inundación
+        new Chart(document.getElementById('vulnInundacionChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Muy Bajo', 'Bajo', 'Moderado', 'Alto', 'Muy Alto'],
+                datasets: [{
+                    label: 'Personas',
+                    data: [3, 6, 4, 20, 5],
+                    backgroundColor: ['#10b981', '#84cc16', '#f59e0b', '#ef4444', '#991b1b'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 2
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let percent = ((context.parsed.y / 38) * 100).toFixed(1);
+                                return context.parsed.y + ' personas (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Vulnerabilidad Deslizamiento
+        new Chart(document.getElementById('vulnDeslizamientoChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Muy Bajo', 'Bajo', 'Moderado', 'Alto', 'Muy Alto'],
+                datasets: [{
+                    label: 'Personas',
+                    data: [20, 10, 3, 3, 2],
+                    backgroundColor: ['#10b981', '#84cc16', '#f59e0b', '#ef4444', '#991b1b'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 2
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let percent = ((context.parsed.y / 38) * 100).toFixed(1);
+                                return context.parsed.y + ' personas (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Salud
+        new Chart(document.getElementById('saludChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Reportó enfermedades (26 - 68.4%)', 'Sin enfermedades (12 - 31.6%)'],
+                datasets: [{
+                    data: [26, 12],
+                    backgroundColor: ['#ef4444', '#10b981'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Experiencia
+        new Chart(document.getElementById('experienciaChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Sí ha experimentado (23 - 60.5%)', 'No ha experimentado (15 - 39.5%)'],
+                datasets: [{
+                    data: [23, 15],
+                    backgroundColor: ['#ef4444', '#10b981'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Nivel del Agua
+        new Chart(document.getElementById('nivelAguaChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Sin afectación', 'Tobillo', 'Rodilla', 'Cintura', 'Hombros', '~4m (1er piso)'],
+                datasets: [{
+                    label: 'Personas',
+                    data: [12, 3, 5, 5, 0, 13],
+                    backgroundColor: ['#10b981', '#84cc16', '#fbbf24', '#f59e0b', '#ef4444', '#991b1b'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 2
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: '13 personas (34.2%) reportaron ~4m que cubrió completamente el primer piso',
+                        font: {
+                            size: 11
+                        },
+                        color: '#991b1b',
+                        padding: {
+                            bottom: 10
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let percent = ((context.parsed.y / 38) * 100).toFixed(1);
+                                return context.parsed.y + ' personas (' + percent + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Zona de Riesgo
+        new Chart(document.getElementById('zonaRiesgoChart'), {
+            type: 'pie',
+            data: {
+                labels: ['No conoce (28 - 73.7%)', 'Sí conoce (10 - 26.3%)'],
+                datasets: [{
+                    data: [28, 10],
+                    backgroundColor: ['#ef4444', '#10b981'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // GRÁFICO: Organización
+        new Chart(document.getElementById('organizacionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Reuniones comunitarias (21 - 55.3%)', 'Sin organización (17 - 44.7%)'],
+                datasets: [{
+                    data: [21, 17],
+                    backgroundColor: ['#2563eb', '#ef4444'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+       
+    </script>
+</body>
+</html>
